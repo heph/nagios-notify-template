@@ -1,0 +1,44 @@
+==Summary:
+
+When notify-template.pl is spawned by nagios or icinga, with 'enable_environment_macros' set, apply nagios/icinga macros to the specified template file, and print to STDOUT. Pipe the output of this script to sendmail or any other notification service. Requires Template::Toolkit (http://search.cpan.org/dist/Template-Toolkit/) and the option 'enable_environment_macros=1' set in your nagios/icinga config.
+
+
+==Purpose:
+
+Nagios and Icinga notification command definitions are ugly and difficult to modify/maintain:
+
+(From the icinga-1.4.0 sample configs)
+ # 'notify-service-by-email' command definition
+ define command{
+         command_name    notify-service-by-email
+         command_line    /usr/bin/printf "%b" "***** Icinga *****\n\nNotification Type: $NOTIFICATIONTYPE$\n\nService: $SERVICEDESC$\nHost: $HOSTALIAS$\nAddress: $HOSTADDRESS$\nState: $SERVICESTATE$\n\nDate/Time: $LONGDATETIME$\n\nAdditional Info:\n\n$SERVICEOUTPUT$\n" | /bin/mail -s "** $NOTIFICATIONTYPE$ Service Alert: $HOSTALIAS$/$SERVICEDESC$ is $SERVICESTATE$ **" $CONTACTEMAIL$
+         }
+
+This is a generic notification script which uses templates to format notifications based on purpose (SMS vs E-Mail, or even on a per-service or per-customer basis). The resulting text can be piped to any notification service such as sendmail, a pager service, web log, etc.
+
+With this script, you can have cleaner notification command definitions, and easier to manage notification messages:
+
+ define command{
+         command_name    notify-service-by-email
+         command_line    /path/to/notify-template.pl --baseurl=$USER1$ --template=/path/to/templates/email.template | /usr/sbin/sendmail -f$ADMINEMAIL$ $CONTACTEMAIL$
+         }
+
+In this case, $USER1$ is defined as the base url to a nagios or icinga installation, which allows you to include a custom URL return link on a per-host basis by modifying the resources.cfg. You could also edit the template to use the HOSTNAME variable. This option is only important with several monitoring hosts which use unique URLs, such as:
+
+https://monitoring01
+https://monitoring02/nagios
+https://monitoring03/icinga
+
+Templates are defined using perl's Template::Toolkit module, as described here: http://template-toolkit.org/docs/manual/index.html
+
+I've included a couple of sample templates, for email and sms, and the sample command configs to use them:
+
+ define command{
+         command_name    notify-service-by-email
+         command_line    /path/to/notify-template.pl --baseurl=$USER1$ --template=/path/to/templates/email.tmpl | /usr/sbin/sendmail -f$ADMINEMAIL$ $CONTACTEMAIL$
+         }
+ 
+ define command{
+         command_name    notify-service-by-sms
+         command_line    /path/to/notify-template.pl --baseurl=$USER1$ --template=/path/to/templates/sms.tmpl | /usr/sbin/sendmail -f$ADMINEMAIL$ $CONTACTPAGER$
+         }
